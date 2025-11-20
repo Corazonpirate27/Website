@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROOT | Open Source Intelligence Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['Space Grotesk', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'glass': 'rgba(0, 0, 0, 0.4)', /* Darker glass for matrix contrast */
+                        'glass-border': 'rgba(0, 255, 65, 0.2)', /* Matrix Green border */
+                        'cyber-green': '#0F0',
+                    },
+                    animation: {
+                        'spin-slow': 'spin 15s linear infinite',
+                        'float': 'float 8s ease-in-out infinite',
+                        'float-delayed': 'float 8s ease-in-out 4s infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* --- GLOBAL AESTHETICS --- */
+        body {
+            background-color: #000000;
+            color: #e5e5e5;
+            overflow-x: hidden;
+            cursor: none; /* Custom Cursor Active */
+        }
+
+        /* Matrix Canvas Background */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -10;
+            pointer-events: none;
+        }
+
+        /* Glowing Orbs - Made more subtle for Matrix visibility */
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -2;
+            opacity: 0.15;
+        }
+        .orb-1 { top: -20%; left: -10%; width: 800px; height: 800px; background: radial-gradient(circle, #00ff41 0%, transparent 70%); animation: float 10s ease-in-out infinite; }
+        .orb-2 { bottom: -20%; right: -10%; width: 700px; height: 700px; background: radial-gradient(circle, #003b00 0%, transparent 70%); animation: float-delayed 12s ease-in-out infinite; }
+
+        /* Custom Cursor */
+        .cursor-dot,
+        .cursor-outline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .cursor-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00ff41;
+            box-shadow: 0 0 10px #00ff41;
+        }
+        .cursor-outline {
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(0, 255, 65, 0.5);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+        /* Hover State for Cursor */
+        body.hovering .cursor-outline {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: transparent;
+            backdrop-filter: blur(2px);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #003300; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(8px); /* Less blur to see code behind */
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0, 255, 65, 0.05);
+        }
+
+        /* Reveal Animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 1s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Mobile Menu Overlay */
+        #mobileMenu {
+            transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+            transform: translateX(100%);
+        }
+        #mobileMenu.open {
+            transform: translateX(0);
+        }
+
+        /* Link List Styling */
+        .resource-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+            transition: all 0.3s ease;
+        }
+        .resource-link:last-child { border-bottom: none; }
+        .resource-link:hover { padding-left: 1rem; border-color: #00ff41; }
+        .resource-link:hover span { color: #00ff41; text-shadow: 0 0 8px rgba(0, 255, 65, 0.5); }
+        
+        ::selection { background: #00ff41; color: black; }
+    </style>
+</head>
+<body class="font-sans antialiased selection:bg-emerald-500 selection:text-black">
+
+    <!-- Matrix Background -->
+    <canvas id="matrix-bg"></canvas>
+
+    <!-- Custom Cursor Elements -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <!-- Glow Orbs -->
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 px-6 py-6 transition-all duration-300 mix-blend-difference" id="navbar">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="#" class="font-serif text-2xl tracking-widest font-bold text-[#00ff41] hover-trigger drop-shadow-[0_0_10px_rgba(0,255,65,0.8)]">ROOT.</a>
+            
+            <!-- Desktop Menu -->
+            <div class="hidden md:flex space-x-10 text-xs tracking-[0.2em] uppercase font-medium text-white">
+                <a href="#hubs" class="hover:text-[#00ff41] transition-colors hover-trigger">Hubs</a>
+                <a href="#mission" class="hover:text-[#00ff41] transition-colors hover-trigger">Mission</a>
+                <a href="#contact" class="hover:text-[#00ff41] transition-colors hover-trigger">Join</a>
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <button id="menuBtn" class="md:hidden text-white uppercase tracking-widest text-xs hover-trigger">MENU</button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileMenu" class="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col justify-center items-center space-y-8">
+        <button id="closeMenuBtn" class="absolute top-8 right-8 text-white/50 hover:text-white text-2xl hover-trigger">&times;</button>
+        <a href="#hubs" class="text-3xl font-serif text-white hover:text-[#00ff41] transition-colors hover-trigger mobile-link">Hubs</a>
+        <a href="#mission" class="text-3xl font-serif text-white hover:text-[#00ff41] transition-colors hover-trigger mobile-link">Mission</a>
+        <a href="#contact" class="text-3xl font-serif text-white hover:text-[#00ff41] transition-colors hover-trigger mobile-link">Join</a>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex flex-col justify-center items-center relative px-4 pt-20">
+        <div class="text-center z-10">
+            <p class="reveal text-[#00ff41] tracking-[0.4em] text-xs uppercase mb-8 font-bold drop-shadow-[0_0_5px_rgba(0,255,65,0.8)]">Curated Internet Intelligence</p>
+            <h1 class="reveal text-5xl md:text-7xl lg:text-9xl font-serif font-medium leading-[1.1] mb-10 text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+                Signal. <br> <span class="italic font-light text-gray-400">Not Noise.</span>
+            </h1>
+            <p class="reveal text-gray-300 max-w-lg mx-auto leading-relaxed text-lg font-light drop-shadow-md">
+                We filter the chaos of the internet. 
+                Access the Top 5 verified open-source resources for the world's 10 most critical tech domains.
+                <br><span class="text-[#00ff41]/80 mt-4 block text-sm tracking-widest uppercase">Free Access • Updated Daily</span>
+            </p>
+        </div>
+        
+        <div class="absolute bottom-12 left-1/2 -translate-x-1/2 reveal animate-bounce">
+            <svg class="w-6 h-6 text-[#00ff41]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+        </div>
+    </section>
+
+    <!-- Resource Hubs Section -->
+    <section id="hubs" class="py-32 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-end mb-24 reveal">
+                <h2 class="text-4xl md:text-6xl font-serif text-white">Intelligence Hubs</h2>
+                <span class="text-[#00ff41] hidden md:block tracking-widest text-sm">Select Protocol</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-16">
+                
+                <!-- 1. Cybersecurity -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">Cybersecurity</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://roadmap.sh/cyber-security" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Roadmap.sh</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Map</span>
+                        </a>
+                        <a href="https://tryhackme.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. TryHackMe</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Labs</span>
+                        </a>
+                        <a href="https://www.hackthebox.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. HackTheBox</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Advanced</span>
+                        </a>
+                        <a href="https://portswigger.net/web-security" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. PortSwigger Academy</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Web</span>
+                        </a>
+                        <a href="https://github.com/enaqx/awesome-pentest" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Awesome Pentest</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Repo</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 2. Data Analytics -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 md:mt-16 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">Data Analytics</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://www.kaggle.com/learn" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Kaggle Learn</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Practice</span>
+                        </a>
+                        <a href="https://github.com/ossu/data-science" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. OSSU Data Science</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Degree</span>
+                        </a>
+                        <a href="https://www.freecodecamp.org/learn/data-analysis-with-python/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. FreeCodeCamp</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Python</span>
+                        </a>
+                        <a href="https://mode.com/sql-tutorial/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. Mode SQL</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">SQL</span>
+                        </a>
+                        <a href="https://pandas.pydata.org/docs/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Pandas Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Manual</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. AI & ML -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">AI & ML</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://course.fast.ai/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Fast.ai</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Deep Learn</span>
+                        </a>
+                        <a href="https://huggingface.co/learn" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Hugging Face</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">NLP</span>
+                        </a>
+                        <a href="https://developers.google.com/machine-learning/crash-course" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. Google ML</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Basics</span>
+                        </a>
+                        <a href="https://cs231n.stanford.edu/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. Stanford CS231n</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Vision</span>
+                        </a>
+                        <a href="https://github.com/openai/openai-cookbook" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. OpenAI Cookbook</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Generative</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 4. DevOps & Cloud -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 md:mt-16 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">DevOps & Cloud</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://roadmap.sh/devops" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Roadmap.sh</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">The Path</span>
+                        </a>
+                        <a href="https://labs.play-with-docker.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Docker Labs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Containers</span>
+                        </a>
+                        <a href="https://kubernetes.io/docs/tutorials/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. Kubernetes.io</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">K8s</span>
+                        </a>
+                        <a href="https://learn.microsoft.com/en-us/training/azure/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. MS Learn Azure</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Cloud</span>
+                        </a>
+                        <a href="https://12factor.net/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. 12-Factor App</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Theory</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 5. Full Stack Web -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">Full Stack Web</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://www.theodinproject.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. The Odin Project</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Complete</span>
+                        </a>
+                        <a href="https://fullstackopen.com/en/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Full Stack Open</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Modern</span>
+                        </a>
+                        <a href="https://developer.mozilla.org/en-US/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. MDN Web Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Bible</span>
+                        </a>
+                        <a href="https://cs50.harvard.edu/web/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. CS50 Web</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Harvard</span>
+                        </a>
+                        <a href="https://javascript.info/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Javascript.info</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Deep Dive</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 6. Mobile Development -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 md:mt-16 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">Mobile Dev</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://developer.android.com/courses" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Android Developers</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Google</span>
+                        </a>
+                        <a href="https://docs.flutter.dev/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Flutter Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Cross-Plat</span>
+                        </a>
+                        <a href="https://reactnative.dev/docs/getting-started" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. React Native</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">JS Based</span>
+                        </a>
+                        <a href="https://cs193p.sites.stanford.edu/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. Stanford iOS</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Swift</span>
+                        </a>
+                        <a href="https://kotlinlang.org/docs/home.html" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Kotlin Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Language</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 7. Blockchain & Web3 -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">Blockchain</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://cryptozombies.io/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. CryptoZombies</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Gamified</span>
+                        </a>
+                        <a href="https://docs.soliditylang.org/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Solidity Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Smart K</span>
+                        </a>
+                        <a href="https://ethereum.org/en/developers/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. Ethereum.org</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Official</span>
+                        </a>
+                        <a href="https://useweb3.xyz/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. useWeb3</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Library</span>
+                        </a>
+                        <a href="https://whiteboardcrypto.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Whiteboard Crypto</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Concepts</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 8. Game Development -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 md:mt-16 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">Game Dev</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://docs.godotengine.org/en/stable/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Godot Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Open Src</span>
+                        </a>
+                        <a href="https://learn.unity.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Unity Learn</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Standard</span>
+                        </a>
+                        <a href="https://dev.epicgames.com/community/learning" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. Unreal Academy</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">AAA</span>
+                        </a>
+                        <a href="https://gamemath.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. Game Math</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Physics</span>
+                        </a>
+                        <a href="https://blender.org/support/tutorials" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Blender</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">3D Art</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 9. UI/UX Design -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">UI/UX Design</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://www.figma.com/community" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Figma Community</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Assets</span>
+                        </a>
+                        <a href="https://lawsofux.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Laws of UX</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Theory</span>
+                        </a>
+                        <a href="https://m3.material.io/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. Material Design</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">System</span>
+                        </a>
+                        <a href="https://www.nngroup.com/articles/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. Nielsen Norman</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Research</span>
+                        </a>
+                        <a href="https://www.checklist.design/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Checklist.Design</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Process</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 10. IoT & Embedded -->
+                <div class="glass-panel p-8 rounded-2xl reveal border border-[#00ff41]/20 hover:border-[#00ff41] transition-colors duration-500 md:mt-16 group">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="text-3xl font-serif text-white group-hover:text-[#00ff41] transition-colors">IoT & Embedded</h3>
+                        <div class="w-10 h-10 bg-[#00ff41]/10 rounded-full flex items-center justify-center text-[#00ff41] border border-[#00ff41]/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <a href="https://docs.arduino.cc/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">01. Arduino Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Start</span>
+                        </a>
+                        <a href="https://projects.raspberrypi.org/en" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">02. Raspberry Pi</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Projects</span>
+                        </a>
+                        <a href="https://www.espressif.com/en/support/documents/technical-documents" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">03. ESP32 Docs</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">WiFi</span>
+                        </a>
+                        <a href="https://www.hackster.io/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">04. Hackster.io</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Community</span>
+                        </a>
+                        <a href="https://learn.adafruit.com/" target="_blank" class="resource-link hover-trigger">
+                            <span class="text-gray-400 text-sm">05. Adafruit Learn</span>
+                            <span class="ml-auto text-xs text-gray-500 group-hover:text-[#00ff41] uppercase tracking-widest">Guides</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission / Method -->
+    <section id="mission" class="py-32 px-6 relative">
+        <div class="max-w-5xl mx-auto reveal">
+            <div class="glass-panel rounded-3xl p-10 md:p-20 relative overflow-hidden border-2 border-[#00ff41]/30">
+                <div class="absolute top-0 right-0 w-96 h-96 bg-[#00ff41]/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+                <span class="text-[#00ff41] uppercase tracking-widest text-xs font-bold mb-6 block">Core Mission</span>
+                <h2 class="text-3xl md:text-5xl font-serif mb-16 leading-tight max-w-3xl text-white">
+                    The internet is full of noise. We provide the map.
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+                    <div>
+                        <h4 class="text-lg mb-6 text-white font-serif">Aggregated Knowledge</h4>
+                        <ul class="space-y-4 text-gray-400 font-light text-sm tracking-wide">
+                            <li class="border-l border-[#00ff41]/20 pl-4 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors cursor-default">Centralized Links</li>
+                            <li class="border-l border-[#00ff41]/20 pl-4 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors cursor-default">Quality Verification</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-lg mb-6 text-white font-serif">Agent Philosophy</h4>
+                        <ul class="space-y-4 text-gray-400 font-light text-sm tracking-wide">
+                            <li class="border-l border-[#00ff41]/20 pl-4 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors cursor-default">Self-Directed Learning</li>
+                            <li class="border-l border-[#00ff41]/20 pl-4 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors cursor-default">Open Source First</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-lg mb-6 text-white font-serif">Zero Bloat</h4>
+                        <ul class="space-y-4 text-gray-400 font-light text-sm tracking-wide">
+                            <li class="border-l border-[#00ff41]/20 pl-4 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors cursor-default">No Paywalls</li>
+                            <li class="border-l border-[#00ff41]/20 pl-4 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors cursor-default">Direct Access</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-32 px-6 min-h-screen flex flex-col justify-center">
+        <div class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-20 items-start">
+            
+            <!-- Left: Text -->
+            <div class="reveal sticky top-32">
+                <h2 class="text-6xl md:text-8xl font-serif mb-8 text-white">Join the Network.</h2>
+                <p class="text-xl text-gray-400 font-light mb-12 max-w-md leading-relaxed">
+                    Become an agent of open intelligence. Join our Discord to share resources and collaborate on projects.
+                </p>
+                <a href="mailto:network@root.io" class="text-2xl border-b border-gray-700 pb-2 hover:text-[#00ff41] hover:border-[#00ff41] transition-colors hover-trigger inline-block text-white">network@root.io</a>
+                
+                <div class="mt-24 text-xs text-gray-500 flex space-x-8 uppercase tracking-[0.2em]">
+                    <a href="#" class="hover:text-[#00ff41] transition-colors hover-trigger">GitHub</a>
+                    <a href="#" class="hover:text-[#00ff41] transition-colors hover-trigger">Discord</a>
+                    <a href="#" class="hover:text-[#00ff41] transition-colors hover-trigger">Signal</a>
+                </div>
+            </div>
+
+            <!-- Right: Discord Card -->
+            <div class="reveal delay-100 w-full">
+                <div class="glass-panel p-1 rounded-2xl border border-[#00ff41]/30">
+                    <div class="bg-black/60 rounded-xl p-8 md:p-10 border border-[#00ff41]/10 flex flex-col items-center text-center justify-center h-[400px]">
+                        
+                        <div class="w-20 h-20 rounded-full bg-[#00ff41]/10 flex items-center justify-center mb-6 border border-[#00ff41]/20">
+                            <svg class="w-10 h-10 text-[#00ff41]" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.956 2.42-2.157 2.42zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.086 2.157 2.419 0 1.334-.946 2.42-2.157 2.42z"/></svg>
+                        </div>
+                        
+                        <h3 class="text-2xl font-serif text-white mb-4">Connect</h3>
+                        <p class="text-gray-400 text-sm mb-8 max-w-xs">Join the agent network. Collaborate on open source intelligence.</p>
+                        
+                        <button class="bg-[#003300] hover:bg-[#00ff41] border border-[#00ff41] text-white hover:text-black font-bold py-3 px-8 rounded-lg transition-all hover:scale-105 uppercase tracking-widest text-xs">
+                            Enter Discord
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 text-center border-t border-[#00ff41]/10">
+        <p class="text-gray-600 text-xs uppercase tracking-[0.3em] hover:text-[#00ff41] transition-colors">&copy; 2025 ROOT INTELLIGENCE.</p>
+    </footer>
+
+    <!-- JAVASCRIPT (UI Logic + Matrix) -->
+    <script>
+        // --- MATRIX RAIN LOGIC ---
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas to full screen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Characters to use (Katakana + Numbers)
+        const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+        const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const nums = '0123456789';
+        const alphabet = katakana + latin + nums;
+
+        // Font size
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+
+        // Array of drops - one per column
+        const drops = [];
+        for (let x = 0; x < columns; x++) {
+            drops[x] = 1;
+        }
+
+        // Draw function
+        function drawMatrix() {
+            // Black BG for the canvas
+            // Translucent black to show trail
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0F0'; // Matrix Green text
+            ctx.font = fontSize + 'px monospace';
+
+            // Loop over drops
+            for (let i = 0; i < drops.length; i++) {
+                // Random character
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                
+                // x = i * fontSize, y = value of drops[i] * fontSize
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                // Sending the drop back to the top randomly after it has crossed the screen
+                // Adding a randomness to the reset to make the drops scattered on the Y axis
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+
+                // Incrementing Y coordinate
+                drops[i]++;
+            }
+        }
+
+        // Run the animation
+        setInterval(drawMatrix, 30);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // Recalculate columns
+            const newColumns = canvas.width / fontSize;
+            drops.length = 0; // clear array
+            for (let x = 0; x < newColumns; x++) {
+                drops[x] = 1;
+            }
+        });
+
+        // --- EXISTING UI LOGIC ---
+        
+        // Custom Cursor logic
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorOutline = document.querySelector('.cursor-outline');
+        const hoverTriggers = document.querySelectorAll('.hover-trigger');
+
+        window.addEventListener('mousemove', (e) => {
+            const posX = e.clientX;
+            const posY = e.clientY;
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 500, fill: "forwards" });
+        });
+
+        hoverTriggers.forEach(trigger => {
+            trigger.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+            trigger.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+        });
+
+        // Scroll Reveal
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealOnScroll = () => {
+            const windowHeight = window.innerHeight;
+            const elementVisible = 100;
+            revealElements.forEach((reveal) => {
+                const elementTop = reveal.getBoundingClientRect().top;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveal.classList.add('active');
+                }
+            });
+        };
+        window.addEventListener('scroll', revealOnScroll);
+        revealOnScroll(); 
+
+        // Mobile Menu Logic
+        const menuBtn = document.getElementById('menuBtn');
+        const closeMenuBtn = document.getElementById('closeMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileLinks = document.querySelectorAll('.mobile-link');
+
+        function toggleMenu() {
+            mobileMenu.classList.toggle('open');
+            document.body.style.overflow = mobileMenu.classList.contains('open') ? 'hidden' : 'auto';
+        }
+
+        menuBtn.addEventListener('click', toggleMenu);
+        closeMenuBtn.addEventListener('click', toggleMenu);
+        mobileLinks.forEach(link => link.addEventListener('click', toggleMenu));
+    </script>
+</body>
+</html>
