@@ -159,7 +159,7 @@
             height: 100vh;
             z-index: -10;
             pointer-events: none;
-            opacity: 1.0; /* BRIGHTNESS MAXIMIZED */
+            opacity: 0.7; /* Adjusted Brightness */
         }
 
         /* --- UI ELEMENTS --- */
@@ -176,7 +176,7 @@
         }
 
         /* Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; } /* Added height for horiz scroll */
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #00ff41; }
@@ -191,10 +191,10 @@
             transform: translateY(0);
         }
 
-        /* Tab Active State */
+        /* Tab Active State - Dynamic Border Color */
         .tab-btn.active {
             background: rgba(0, 255, 65, 0.05);
-            border-left-color: #00ff41;
+            border-color: #00ff41; /* Generic color, side controlled by width classes */
             color: #00ff41;
         }
 
@@ -283,7 +283,7 @@
         </div>
 
         <div class="glass-panel rounded-xl flex flex-col md:flex-row min-h-[600px] overflow-hidden reveal">
-            <!-- Sidebar Tabs -->
+            <!-- Sidebar Tabs (Mobile: Horizontal Scroll, Desktop: Vertical) -->
             <div class="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/10 bg-black/20 flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto custom-scrollbar" id="hub-tabs">
                 <!-- JS Injected -->
             </div>
@@ -519,14 +519,12 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- BRIGHTER MATRIX ---
+        // --- SUBTLE MATRIX (Restored) ---
         const canvas = document.getElementById('matrix-bg');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        
-        // Use standard Matrix chars + numbers
-        const chars = '0123456789ABCDEF'; 
+        const chars = '010101アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
         const fontSize = 14;
         let columns = canvas.width / fontSize;
         let drops = [];
@@ -534,36 +532,37 @@
         function initDrops() { 
             drops = []; 
             columns = canvas.width / fontSize; 
-            for(let x = 0; x < columns; x++) drops[x] = Math.random() * -100; 
+            for(let x = 0; x < columns; x++) drops[x] = Math.random() * -100; // Random start
         }
         initDrops();
 
         function drawMatrix() {
-            // Lower opacity fade = longer trails
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; 
+            // Very transparent fade for longer, subtler trails
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            ctx.fillStyle = '#0f3a1a'; // Very dark green for most chars
             ctx.font = fontSize + 'px monospace';
             
             for(let i = 0; i < drops.length; i++) {
                 const text = chars.charAt(Math.floor(Math.random() * chars.length));
                 
-                // Color Logic: Bright head, darker tail
-                if(Math.random() > 0.95) {
-                    ctx.fillStyle = '#ffffff'; // White spark
+                // Occasional bright char
+                if(Math.random() > 0.98) {
+                    ctx.fillStyle = '#00ff41'; 
                 } else {
-                    ctx.fillStyle = '#00ff41'; // Classic bright green
+                    ctx.fillStyle = '#1a4a2a';
                 }
                 
                 ctx.fillText(text, i * fontSize, drops[i] * fontSize);
                 
-                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.99) {
                     drops[i] = 0;
                 }
                 drops[i]++;
             }
         }
-        setInterval(drawMatrix, 35); // Slightly faster
+        setInterval(drawMatrix, 45); // Slower animation
         window.addEventListener('resize', () => { 
             canvas.width = window.innerWidth; 
             canvas.height = window.innerHeight; 
@@ -703,7 +702,7 @@
             }
         ];
 
-        // --- COMMAND CENTER UI (TAB LAYOUT RESTORED) ---
+        // --- COMMAND CENTER UI (TAB LAYOUT RESTORED & FIXED) ---
         function initHubsUI() {
             const tabContainer = document.getElementById('hub-tabs');
             const contentArea = document.getElementById('hub-content-area');
@@ -712,7 +711,8 @@
             tabContainer.innerHTML = '';
             hubsData.forEach((hub, index) => {
                 const btn = document.createElement('button');
-                btn.className = `tab-btn w-full text-left px-6 py-4 text-xs font-mono uppercase tracking-widest text-gray-500 hover:bg-white/5 hover:text-white transition-all border-l-2 border-transparent flex items-center gap-3 shrink-0`;
+                // UPDATED CLASS STRING FOR MOBILE FIX
+                btn.className = `tab-btn w-auto md:w-full text-left px-6 py-4 text-xs font-mono uppercase tracking-widest text-gray-500 hover:bg-white/5 hover:text-white transition-all border-b-2 md:border-b-0 md:border-l-2 border-transparent flex items-center gap-3 shrink-0 whitespace-nowrap`;
                 if (index === 0) btn.classList.add('active');
                 btn.innerHTML = `<svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${hub.icon}"></path></svg> ${hub.name}`;
                 
